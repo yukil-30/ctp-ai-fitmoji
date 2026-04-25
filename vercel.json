@@ -1,0 +1,14 @@
+// Next.js
+{
+  "outputDirectory": ".next"
+}
+
+// Vite
+{
+  "outputDirectory": "dist"
+}
+
+// Create React App
+{
+  "outputDirectory": "build"
+}
