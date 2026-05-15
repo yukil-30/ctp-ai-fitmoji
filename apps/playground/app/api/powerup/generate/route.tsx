@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { villageAnalyzer } from  "../../../../lib/villageAnalyzer"
 import { getRewardBudget } from "../../../../lib/rewardCalibrator"
+import { generatePowerupWithLLM } from "@/lib/powerupPrompt";
 
 
 
@@ -12,19 +13,27 @@ export async function POST(req: Request) {
 
     const { villageMap, challenge } = userPayload
 
-    const village_status = await villageAnalyzer(villageMap.local)
+    const villageStatus = await villageAnalyzer(villageMap.local)
     const rewardBudget = await getRewardBudget(challenge)
 
 
+    // Step 3: Ask the LLM to generate a tailored powerup
+    const { powerup, villageNeedsAssessment } = await generatePowerupWithLLM(
+      villageStatus,
+      rewardBudget
+    );
+ 
     return NextResponse.json({
       status: "success",
-      village_status,
-      rewardBudget
-    })
-
-
+      village_status: villageStatus,
+      rewardBudget,
+      generatedPowerup: powerup,
+      villageNeedsAssessment,
+    });
+ 
   } catch (error) {
-    console.log("Error")
-    return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
+    const message = error instanceof Error ? error.message : "Unknown error";
+    console.error("[powerup-generator] Error:", message);
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }

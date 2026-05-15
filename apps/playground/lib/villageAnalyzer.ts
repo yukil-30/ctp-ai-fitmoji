@@ -1,3 +1,5 @@
+import { VillageNeeds } from "./powerupPrompt";
+
 interface BoardItem {
     wallHeight: number;
     unit: string | null;
@@ -165,7 +167,7 @@ function primaryNeed(units: any, walls: any, harvest: any, swarm: any) {
 
     return {
         primaryNeed: topNeed?.id || "energy_bonus",
-        urgency: topNeed?.score >= 90 ? "high" : topNeed?.score >= 40 ? "medium" : "low",
+        urgency: (topNeed?.score >= 90 ? "high" : topNeed?.score >= 40 ? "medium" : "low") as VillageNeeds["urgency"],
         secondaryNeed: secondNeed?.id || "energy_bonus"
     };
 }
