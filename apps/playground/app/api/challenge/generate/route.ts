@@ -1,3 +1,4 @@
+import { generateChallenges } from "@/lib/challenge";
 import { generateChallenges } from "@/lib/challenges";
 import {
   enrichChallengesWithLLM,
