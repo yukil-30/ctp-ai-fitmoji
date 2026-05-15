@@ -1,8 +1,6 @@
 import type { GeneratedChallenge } from "./challenges";
+import { callLlmJson, type LlmProvider } from "./llm/client";
 import type { PowerUpRecommendationRequest } from "./powerups/types";
-
-const DEFAULT_LLM_URL = "http://localhost:11434/v1/chat/completions";
-const LLM_MODEL = process.env.LOCAL_LLM_MODEL ?? "llama3.1:8b";
 
 type ChallengeEnrichmentItem = {
   challengeId: string;
@@ -75,27 +73,6 @@ Return the same number of challenges with the same challengeId values.
 `.trim();
 }
 
-function getLlmApiUrl(): string {
-  const base = process.env.LOCAL_LLM_API_BASE?.replace(/\/$/, "");
-  if (!base) {
-    return DEFAULT_LLM_URL;
-  }
-  return base.endsWith("/v1/chat/completions")
-    ? base
-    : `${base}/v1/chat/completions`;
-}
-
-function extractLlmText(data: Record<string, unknown>): string {
-  const choices = data.choices as Array<{ message?: { content?: string } }> | undefined;
-  const message = data.message as { content?: string } | undefined;
-  return choices?.[0]?.message?.content ?? message?.content ?? "";
-}
-
-function parseLlmJson<T>(rawText: string): T {
-  const stripped = rawText.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
-  return JSON.parse(stripped) as T;
-}
-
 function mergeEnrichment(
   staticChallenges: GeneratedChallenge[],
   enriched: ChallengeEnrichmentItem[]
@@ -120,41 +97,11 @@ function mergeEnrichment(
 export async function enrichChallengesWithLLM(
   request: PowerUpRecommendationRequest,
   challenges: GeneratedChallenge[]
-): Promise<GeneratedChallenge[]> {
-  const userMessage = buildChallengeEnrichmentPrompt(request, challenges);
-
-  const response = await fetch(getLlmApiUrl(), {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: LLM_MODEL,
-      messages: [
-        { role: "system", content: SYSTEM_PROMPT },
-        { role: "user", content: userMessage },
-      ],
-      stream: false,
-      format: "json",
-    }),
+): Promise<{ challenges: GeneratedChallenge[]; provider: LlmProvider }> {
+  const { data: parsed, provider } = await callLlmJson<ChallengeEnrichmentResult>({
+    system: SYSTEM_PROMPT,
+    user: buildChallengeEnrichmentPrompt(request, challenges),
   });
-
-  if (!response.ok) {
-    const errText = await response.text();
-    throw new Error(`LLM API error ${response.status}: ${errText}`);
-  }
-
-  const data = (await response.json()) as Record<string, unknown>;
-  const rawText = extractLlmText(data);
-
-  if (!rawText) {
-    throw new Error(`LLM returned no content. Full response: ${JSON.stringify(data)}`);
-  }
-
-  let parsed: ChallengeEnrichmentResult;
-  try {
-    parsed = parseLlmJson<ChallengeEnrichmentResult>(rawText);
-  } catch {
-    throw new Error(`Failed to parse LLM response as JSON.\nRaw: ${rawText}`);
-  }
 
   if (!Array.isArray(parsed.challenges) || parsed.challenges.length === 0) {
     throw new Error(`LLM response missing challenges array.\nParsed: ${JSON.stringify(parsed)}`);
@@ -169,5 +116,8 @@ export async function enrichChallengesWithLLM(
     }
   }
 
-  return mergeEnrichment(challenges, parsed.challenges);
+  return {
+    challenges: mergeEnrichment(challenges, parsed.challenges),
+    provider,
+  };
 }
