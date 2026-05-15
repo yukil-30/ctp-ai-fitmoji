@@ -2,7 +2,8 @@
 
 // powerupPrompt.ts
 
-const ANTHROPIC_API_URL = process.env.LOCAL_LLM_API_BASE;
+const ANTHROPIC_API_URL = process.env.ANTHROPIC_API_URL;
+const LOCAL_LLM_API_URL = process.env.LOCAL_LLM_API_URL
 
 // --- Types ---
 
@@ -126,43 +127,6 @@ EXAMPLE 2 — Support powerup (forest_spirit):
 
 // --- System prompt ---
 
-
-
-
-const api_url = "http://localhost:11434/v1/chat/completions"
-
-// export const generateRewardPrompt = (
-//   status: VillageStatus,
-//   difficulty: string,
-//   budget: number,
-//   template: PowerupPayload
-// ) => {
-//   return `
-//     You are a game reward engine for Fitmoji.
-
-//     GAME MECHANICS:
-//     - Units: boxer (melee, 135HP), quarterback (ranged, 150HP), tennis (ranged, 115HP).
-//     - Structures: Walls (20HP), Windmills (6HP), Houses (80HP).
-//     - Stars: Luxury currency. Energy: Earned via activity.
-
-//     CURRENT VILLAGE STATUS:
-//     ${JSON.stringify(status, null, 2)}
-
-//     CONSTRAINTS:
-//     - Challenge Difficulty: ${difficulty}
-//     - Reward Budget: ${budget} energy equivalent.
-//     - Template to follow: ${JSON.stringify(template)}
-
-//     YOUR TASK:
-//     Generate one powerup addressing the village's urgent needs proportional to the budget.
-//     Return ONLY a JSON object matching this schema:
-//     { 
-//       "powerup": { ...follow template structure... },
-//       "villageNeedsAssessment": "short string explaining why this was chosen"
-//     }
-//   `.trim();
-// };
-
 const SYSTEM_PROMPT = `
 You are a game design engine for Fitmoji, a fitness-gamification app. 
 Your job is to generate one contextually appropriate powerup for a player's village based on their current village state and challenge difficulty.
@@ -197,7 +161,7 @@ export async function generatePowerupWithLLM(
     villageStatus: VillageStatus,
     rewardBudget: RewardBudget
 ): Promise<PowerupGenerationResult> {
-    const apiKey = process.env.LOCAL_LLM_API_KEY;
+    const apiKey = process.env.ANTHROPIC_API_KEY;
     if (!apiKey) throw new Error("ANTHROPIC_API_KEY is not configured.");
 
     const userMessage = `
@@ -217,21 +181,23 @@ Now generate ONE new powerup tailored to the village status and budget above.
 The powerup should be a creative variation — give it a unique id and displayName, do not reuse "crazy_capy" or "forest_spirit".
 `.trim();
 
-    const response = await fetch(api_url, {
+    const response = await fetch("https://api.anthropic.com/v1/messages", {
         method: "POST",
         headers: {
             "Content-Type": "application/json",
-            // "x-api-key": apiKey,
-            // "anthropic-version": "2023-06-01",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
         },
         body: JSON.stringify({
-            model: "llama3.1:8b",
+            model: "claude-haiku-4-5-20251001",
+            // model: "llama3.1:8b",
+            max_tokens: 2000,
+            system: SYSTEM_PROMPT,
             messages: [
-                { role: "system", content: SYSTEM_PROMPT },
                 { role: "user", content: userMessage },
             ],
-            stream: false,
-            format: "json",
+            // stream: false,
+            // format: "json",
         }),
     });
 
@@ -242,16 +208,16 @@ The powerup should be a creative variation — give it a unique id and displayNa
 
     const data = await response.json();
     // Log the raw shape so you can see exactly what Ollama returned
-    console.log("[powerup-generator] Raw Ollama response:", JSON.stringify(data, null, 2));
+    console.log("[powerup-generator] Raw Anthropic response:", JSON.stringify(data, null, 2));
 
     const rawText: string =
-        data.choices?.[0]?.message?.content  // OpenAI-compat
-        ?? data.message?.content             // Ollama native
+        data.content?.[0]?.text  // OpenAI-compat
+        // data.message?.content             // Ollama native
         ?? "";
 
     if (!rawText) {
         throw new Error(
-            `Ollama returned no content. Full response: ${JSON.stringify(data)}`
+            `Anthropic returned no content. Full response: ${JSON.stringify(data)}`
         );
     }
 
@@ -289,58 +255,3 @@ The powerup should be a creative variation — give it a unique id and displayNa
 
     return parsed;
 }
-
-// export async function POST(req: Request) {
-
-//     const { villageStatus, difficulty, budget, payloadTemplate } = await req.json();
-
-//     const fullPrompt = generateRewardPrompt(
-//         villageStatus,
-//         difficulty,
-//         budget,
-//         payloadTemplate
-//     );
-
-//     const api_key = process.env.LOCAL_LLM_API_KEY
-
-//     if (!api_key) {
-//         return new Response("API Key not configured", { status: 500 });
-//     }
-
-//     const response = await fetch(api_url, {
-//         method: "POST",
-//         headers: {
-//             "Content-Type": "application/json",
-//             "Authorization": `Bearer ${api_key}`, // Key is safely injected here
-//         },
-//         body: JSON.stringify({
-//             // ... your prompt logic
-//         }),
-//     });
-
-
-// }
-
-// export function useAIGenerator() {
-//     const [loading, setLoading] = useState(false);
-
-//     const getCompletion = async (userTask: string) => {
-//         setLoading(true);
-
-//         // The "System" prompt stays hidden from the user but guides the AI
-//         const systemPrompt = "You are a coding expert specializing in TypeScript.";
-//         const userPrompt = `Explain this concept simply: ${userTask}`;
-
-//         try {
-//             const response = await fetch('/api/ai', {
-//                 method: 'POST',
-//                 body: JSON.stringify({ systemPrompt, userPrompt }),
-//             });
-//             return await response.json();
-//         } finally {
-//             setLoading(false);
-//         }
-//     };
-
-//     return { getCompletion, loading };
-// }

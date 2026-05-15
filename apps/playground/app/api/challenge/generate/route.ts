@@ -1,4 +1,4 @@
-import { generateChallenges } from "@/lib/challenges";
+import { generateChallenges } from "@/lib/challenge";
 import { mockPersonas } from "@/lib/powerups/personas";
 import { validatePowerUpRequest } from "@/lib/powerups/validation";
 import type { PowerUpRecommendationRequest } from "@/lib/powerups/types";

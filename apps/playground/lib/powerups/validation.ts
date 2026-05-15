@@ -3,6 +3,7 @@ import type { PowerUpRecommendationRequest } from "./types";
 export function validatePowerUpRequest(
   body: Partial<PowerUpRecommendationRequest>
 ): string | null {
+
   if (!body.uid) {
     return "uid is required";
   }
