@@ -1,0 +1,16 @@
+{
+  "uid": "uid_strength_defender",
+  "displayName": "Strength Defender",
+  "healthGoals": ["get stronger"],
+  "healthActivity": {
+    "steps": 4200,
+    "activeCalories": 350,
+    "exerciseMinutes": 35
+  },
+  "village": {
+    "defenseScore": 8,
+    "attackScore": 3,
+    "availableEnergy": 1200,
+    "damagedStructures": 2
+  }
+}

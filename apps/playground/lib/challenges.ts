@@ -19,6 +19,7 @@ export type GeneratedChallenge = Challenge & {
     current: number;
     target: number;
   };
+  reason?: string;
 };
 
 type ChallengeDefinition = Challenge & {
